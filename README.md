@@ -29,7 +29,8 @@ See `Documentation/MFSU_Theory.pdf` for details and `Code/MFSU_Wigner.py` for th
 - Propagator and critical temperature visualizations
 
 ## Citation
-Please cite this work using the Zenodo DOI (to be generated upon upload).
+Franco León, M. Á. (2025). Unified Stochastic Fractal Model (MFSU). Zenodo. [DOI:0009-0003-9492-385X]
+
 
 ## Requirements
 
@@ -40,6 +41,9 @@ MIT License
 
 ## Contact
 Miguel Ángel Franco León, mf410360@gmail.com [0009-0003-9492-385X](https://orcid.org/0009-0003-9492-385X)
+
+## Citation
+Franco León, M. Á. (2025). Unified Stochastic Fractal Model (MFSU). Zenodo. [DOI:0009-0003-9492-385X]
 
 ## References
 
