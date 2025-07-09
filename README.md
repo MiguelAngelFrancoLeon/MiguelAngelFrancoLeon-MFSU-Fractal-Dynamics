@@ -39,7 +39,7 @@ See `requirements.txt`.
 MIT License
 
 ## Contact
-Miguel Ángel Franco León, University of Buenos Aires, mf410360@gmail.com [0009-0003-9492-385X](https://orcid.org/0009-0003-9492-385X)
+Miguel Ángel Franco León, mf410360@gmail.com [0009-0003-9492-385X](https://orcid.org/0009-0003-9492-385X)
 
 ## References
 
