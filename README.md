@@ -50,10 +50,6 @@ This repository contains the code, data, and documentation for the Unified Fract
 - Symbolic action derivation
 - Propagator and critical temperature visualizations
 
-## Citation
-Franco León, M. Á. (2025). Unified Stochastic Fractal Model (MFSU). Zenodo. [DOI:0009-0003-9492-385X]
-
-
 ## Requirements
 
 See `requirements.txt`.
