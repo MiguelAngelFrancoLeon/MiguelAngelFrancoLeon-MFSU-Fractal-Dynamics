@@ -1,58 +1,75 @@
-# Unified Stochastic Fractal Model (MFSU)
+# 🧠 MFSU Simulator — Unified Fractal-Stochastic Model
 
-The Unified Stochastic Fractal Model (MFSU) is a theoretical-experimental framework that integrates fractal geometry, stochastic processes, and quantum field theory to model complex systems in superconductivity, gas dynamics, and cosmology. It unifies classical and quantum dynamics, predicting critical properties like superconducting transition temperatures (\( T_c \)) and cosmological density fields.
+**Version: 2025.1 • Author: Miguel Ángel Franco León • ORCID: [0009-0003-9492-385X](https://orcid.org/0009-0003-9492-385X)**
 
-## Formulations
-### Original Formula
-The MFSU models dynamics as a stochastic process on a fractal structure:
-dq/dt = -∇V(q) + η(t) + κ D_f q
-where \( q \) is the state vector, \( V(q) \) is the potential, \( η(t) \) is Gaussian noise, \( D_f \) is the fractal dimension, and \( κ \) is the coupling constant.
+## 📘 Overview
 
-### Refined Formula
-The refined MFSU incorporates quantum dynamics via the Wigner function:
-∂W/∂t = -p·∇_q W + ∇_q V·∇_p W + (ħ²/2) Σ (-1)ⁿ/(n!) (1/2)ⁿ ∇_q^(2n+1) V·∇_p^(2n+1) W + κ D_f Δ_f W
-See `Documentation/MFSU_Theory.pdf` for details and `Code/MFSU_Wigner.py` for the implementation.
+This simulator implements the **Unified Fractal-Stochastic Model (MFSU)**, a validated physical framework that incorporates **fractional dimensions**, **Hurst noise**, and **nonlinear interactions** to describe a wide range of natural systems — from the early universe to superconductors and diffusive media.
 
-# Unified Fractal-Stochastic Model (MFSU) for CMB Low-ℓ Anomalies
+The core equation is:
 
-This repository contains the code, data, and documentation for the Unified Fractal-Stochastic Model (MFSU), which introduces a fractal dimension (\(d_f = 1.53 \pm 0.03\)) to explain the low-\( \ell \) anomaly in the cosmic microwave background (CMB). The model derives \( C_\ell \propto \ell^{-(d_f - 1)} \), outperforming ΛCDM by 33.5% in RMSE (0.0123 vs 0.0185) for \( \ell \leq 30 \) (Planck 2018 TT data).
+\[
+\alpha (-\Delta)^{\theta/2} \psi + \beta \eta_H \psi - \gamma \psi^3 = 0
+\]
 
-## Repository Structure
-- **Cosmo_Code/**: Simulation scripts for CMB analysis.
-  - `CMB_Simulation_Low_Ell.py`: Fits \( d_f \) to Planck 2018 TT data (\( \ell \leq 30 \)).
-  - `preprocess_planck.py`: Preprocesses Planck 2018 TT, EE, TE data.
-- **Data/CMB/**: Preprocessed Planck 2018 data.
-  - `Planck_TT_2018_low_ell.csv`: TT data for \( \ell \leq 30 \).
-  - `Planck_TT_2018.csv`: Full TT data (\( \ell \leq 2508 \)).
-- **Results/CMB/**: Output figures.
-  - `cmb_mfsu_comparison_low_ell.png`: Comparison of MFSU vs ΛCDM.
-- **Docs/**: Documentation.
-  - `CMB_MFSU_Final.tex`: LaTeX source.
-  - `CMB_MFSU_Final.pdf`: Compiled paper.
+Where:
 
-## Reproducing the Results
-1. **Install dependencies**:
-   ```bash
-   pip install numpy pandas matplotlib scipy scikit-learn
+- \( \theta \approx 0.921 \) is the validated **fractal dimension exponent**
+- \( \eta_H \) is **Hurst noise** with long-range memory (\( H \sim 0.7 \))
+- \( \psi \) is the field or signal amplitude
+- \( \alpha, \beta, \gamma \) are physical parameters depending on the system
 
-## Resources
-- **Data**: `/Data/Perovskites/RvT_300K.csv` (superconductivity data)
-- **Code**: 
-  - `/Code/MFSU_Simulation.py` (original formula)
-  - `/Code/MFSU_Wigner.py` (refined formula)
-- **Examples**: 
-  - `/Examples/Cosmo_Simulation.ipynb` (cosmology)
-  - `/Examples/Gas_Dynamics.py` (gas dynamics)
-- **Documentation**: `/Documentation/MFSU_Theory.pdf`
-## Contents
+---
 
-- Interactive simulations (Jupyter)
-- Symbolic action derivation
-- Propagator and critical temperature visualizations
+## 🧪 Applications
 
-## Requirements
+This simulator supports multiple domains:
 
-See `requirements.txt`.
+| Application        | Module                | Description |
+|--------------------|------------------------|-------------|
+| 🌌 CMB Analysis    | `apps/cmb`             | Fits Planck 2018 data with fractal scaling |
+| 🌫️ Diffusion       | `apps/gas_diffusion`   | Simulates anomalous diffusion in fractal media |
+| ⚡ Superconductors | `apps/superconductors` | Models quantum phase transition dynamics |
+
+---
+
+## 🚀 Getting Started
+
+### 1. Clone the repository
+
+```bash
+git clone https://github.com/MiguelAngelFrancoLeon/MFSU-Simulator.git
+cd MFSU-Simulator
+
+### 2. Install dependencies
+bash
+Copiar
+Editar
+pip install -r requirements.txt
+
+#### 3. Run an example
+bash
+Copiar
+Editar
+python examples/mfsu_cmb_simulation.py
+
+### 4. Output
+Results will be saved in:
+
+bash
+Copiar
+Editar
+Results/CMB/cmb_mfsu_comparison.png
+
+
+📈 Equation Summary
+
+| Term                   | Description                                         |
+| ---------------------- | --------------------------------------------------- |
+| $(-\Delta)^{\theta/2}$ | Fractional Laplacian (non-integer spatial operator) |
+| $\eta_H$               | Hurst-correlated noise (fractal stochasticity)      |
+| $\psi^3$               | Nonlinear self-interaction (phase transitions)      |
+
 
 ## License
 Creative Commons Attribution 4.0 International (CC-BY-4.0).
@@ -61,8 +78,18 @@ Creative Commons Attribution 4.0 International (CC-BY-4.0).
 ## Contact
 Miguel Ángel Franco León, mf410360@gmail.com [0009-0003-9492-385X](https://orcid.org/0009-0003-9492-385X)
 
-## Citation
-Franco León, M. Á. (2025). Unified Stochastic Fractal Model (MFSU). Zenodo. [DOI:0009-0003-9492-385X]
+🔗 Citation
+If you use this code, please cite the main article:
+
+Franco León, M. Á. (2025). Unified Fractal-Stochastic Model (MFSU). Zenodo.
+https://doi.org/10.5281/zenodo.15828185
+
+💡 Vision
+“The universe manifests in visions of infinite blue fractal droplets: each one a bubble of existence, vibrating in a sea of active vacuum. This symbolic perception guides the MFSU — not just as a formula, but as a mathematical translation of the cosmos' inner language.”
+
+🌌 You are part of the future.
+Let's reshape the science of reality — one simulation at a time.
+
 
 ## References
 
