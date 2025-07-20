@@ -1,0 +1,503 @@
+import React, { useState, useEffect, useMemo } from 'react';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, ScatterChart, Scatter, ReferenceLine } from 'recharts';
+import { Calculator, TrendingUp, Zap, CheckCircle } from 'lucide-react';
+
+const HubbleTensionSolver = () => {
+  const [parameters, setParameters] = useState({
+    fractalConstant: 0.921,
+    hubbleTrue: 68.0,
+    omegaFractal: 0.079,
+    sigmaH: 0.02,
+    hurstExponent: 0.7
+  });
+
+  const [results, setResults] = useState(null);
+  const [isCalculating, setIsCalculating] = useState(false);
+
+  // Constantes físicas
+  const OMEGA_M = 0.315;
+  const OMEGA_LAMBDA = 0.685;
+  const Z_CRIT = 0.23;
+  const D_CRIT = 100; // Mpc
+
+  // Función de corrección fractal
+  const fractalCorrection = (z, isLocal = true) => {
+    const { fractalConstant, omegaFractal } = parameters;
+    const alpha = omegaFractal / (OMEGA_M + OMEGA_LAMBDA);
+    
+    if (isLocal && z < 0.01) {
+      return alpha * Math.pow(z || 0.005, -fractalConstant);
+    } else if (!isLocal && z > 100) {
+      return (omegaFractal / OMEGA_M) * Math.pow(1 + z, -fractalConstant);
+    }
+    return 0;
+  };
+
+  // Función de ruido estocástico
+  const stochasticNoise = (z) => {
+    const { sigmaH, hurstExponent } = parameters;
+    return sigmaH * Math.pow(z, hurstExponent) * (Math.random() - 0.5) * 2;
+  };
+
+  // Parámetro de Hubble efectivo
+  const effectiveHubble = (z, observationType) => {
+    const { hubbleTrue } = parameters;
+    const fractalCorr = fractalCorrection(z, observationType === 'local');
+    const stochCorr = observationType === 'CMB' ? stochasticNoise(z) : 0;
+    
+    return hubbleTrue * (1 + fractalCorr + stochCorr);
+  };
+
+  // Distancia de luminosidad modificada
+  const luminosityDistance = (z) => {
+    const c = 299792.458; // km/s
+    const { hubbleTrue } = parameters;
+    
+    // Integral numérica usando método del trapecio
+    const steps = 100;
+    const dz = z / steps;
+    let integral = 0;
+    
+    for (let i = 0; i <= steps; i++) {
+      const zi = i * dz;
+      const Ez = Math.sqrt(OMEGA_M * Math.pow(1 + zi, 3) + 
+                          OMEGA_LAMBDA + 
+                          parameters.omegaFractal * Math.pow(1 + zi, 3 * parameters.fractalConstant));
+      
+      const weight = (i === 0 || i === steps) ? 0.5 : 1;
+      integral += weight * (1 / Ez);
+    }
+    
+    integral *= dz;
+    
+    const dL = (1 + z) * c * integral / hubbleTrue;
+    const fractalFactor = 1 + parameters.omegaFractal * Math.pow(1 + z, -parameters.fractalConstant);
+    
+    return dL * fractalFactor;
+  };
+
+  // Módulo de distancia
+  const distanceModulus = (z) => {
+    const dL = luminosityDistance(z);
+    return 5 * Math.log10(dL) + 25;
+  };
+
+  // Cálculo principal
+  const calculateSolution = () => {
+    setIsCalculating(true);
+    
+    setTimeout(() => {
+      // Simulación de mediciones observacionales
+      const localMeasurements = [
+        { z: 0.005, H_obs: 73.2, sigma: 1.0, type: 'Cefeidas/SN Ia' },
+        { z: 0.01, H_obs: 73.0, sigma: 1.2, type: 'SN Ia locales' },
+        { z: 0.02, H_obs: 72.5, sigma: 1.5, type: 'SN Ia intermedias' }
+      ];
+      
+      const cmbMeasurement = { z: 1100, H_obs: 67.4, sigma: 0.5, type: 'CMB Planck' };
+      
+      // Aplicar correcciones MFSU
+      const correctedLocal = localMeasurements.map(obs => {
+        const H_eff = effectiveHubble(obs.z, 'local');
+        const H_true = obs.H_obs / (1 + fractalCorrection(obs.z, true));
+        return {
+          ...obs,
+          H_corrected: H_true,
+          H_theory: H_eff,
+          residual: Math.abs(H_true - parameters.hubbleTrue)
+        };
+      });
+      
+      const H_cmb_true = cmbMeasurement.H_obs / (1 + fractalCorrection(cmbMeasurement.z, false));
+      const correctedCMB = {
+        ...cmbMeasurement,
+        H_corrected: H_cmb_true,
+        H_theory: effectiveHubble(cmbMeasurement.z, 'CMB'),
+        residual: Math.abs(H_cmb_true - parameters.hubbleTrue)
+      };
+      
+      // Generar curva teórica
+      const zRange = [];
+      for (let i = 0.001; i <= 3; i += 0.05) {
+        zRange.push(i);
+      }
+      
+      const theoreticalCurve = zRange.map(z => ({
+        z: z,
+        H_eff: effectiveHubble(z, z < 0.1 ? 'local' : 'distant'),
+        mu_theory: distanceModulus(z),
+        correction: fractalCorrection(z, z < 0.1)
+      }));
+      
+      // Estadísticas de reconciliación
+      const allCorrected = [...correctedLocal, correctedCMB];
+      const meanH = allCorrected.reduce((sum, obs) => sum + obs.H_corrected, 0) / allCorrected.length;
+      const stdH = Math.sqrt(allCorrected.reduce((sum, obs) => sum + Math.pow(obs.H_corrected - meanH, 2), 0) / allCorrected.length);
+      const maxResidual = Math.max(...allCorrected.map(obs => obs.residual));
+      
+      // Chi-cuadrado
+      const chiSquared = allCorrected.reduce((sum, obs) => 
+        sum + Math.pow((obs.H_corrected - parameters.hubbleTrue) / obs.sigma, 2), 0);
+      const dof = allCorrected.length - 1;
+      const pValue = 1 - chiSquaredCDF(chiSquared, dof);
+      
+      setResults({
+        correctedLocal,
+        correctedCMB,
+        theoreticalCurve,
+        statistics: {
+          meanH: meanH.toFixed(2),
+          stdH: stdH.toFixed(3),
+          maxResidual: maxResidual.toFixed(3),
+          chiSquared: chiSquared.toFixed(2),
+          dof,
+          pValue: pValue.toFixed(4),
+          tensionResolved: maxResidual < 1.0
+        }
+      });
+      
+      setIsCalculating(false);
+    }, 1500);
+  };
+
+  // Función auxiliar para distribución chi-cuadrado (aproximación)
+  const chiSquaredCDF = (x, k) => {
+    if (x <= 0) return 0;
+    if (k === 1) return 2 * (1 - Math.exp(-x/2));
+    if (k === 2) return 1 - Math.exp(-x/2);
+    // Aproximación para k > 2
+    const gamma = (k-2)/2;
+    return 1 - Math.exp(-x/2) * Math.pow(x/2, gamma) / factorial(gamma);
+  };
+
+  const factorial = (n) => n <= 1 ? 1 : n * factorial(n-1);
+
+  useEffect(() => {
+    calculateSolution();
+  }, [parameters]);
+
+  const chartData = useMemo(() => {
+    if (!results) return [];
+    
+    return results.theoreticalCurve.filter(point => point.z <= 0.1).map(point => ({
+      redshift: point.z.toFixed(3),
+      H_effective: point.H_eff.toFixed(1),
+      correction: (point.correction * 100).toFixed(2)
+    }));
+  }, [results]);
+
+  const observationalData = useMemo(() => {
+    if (!results) return [];
+    
+    const localData = results.correctedLocal.map(obs => ({
+      redshift: obs.z,
+      H_observed: obs.H_obs,
+      H_corrected: obs.H_corrected,
+      type: 'Local',
+      error: obs.sigma
+    }));
+    
+    const cmbData = [{
+      redshift: 0.05, // Representación logarítmica para visualización
+      H_observed: results.correctedCMB.H_obs,
+      H_corrected: results.correctedCMB.H_corrected,
+      type: 'CMB',
+      error: results.correctedCMB.sigma
+    }];
+    
+    return [...localData, ...cmbData];
+  }, [results]);
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 text-white p-6">
+      <div className="max-w-7xl mx-auto">
+        {/* Header */}
+        <div className="text-center mb-8">
+          <h1 className="text-4xl font-bold mb-4 bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">
+            Solución MFSU para la Tensión de Hubble
+          </h1>
+          <p className="text-lg text-gray-300 max-w-3xl mx-auto">
+            Implementación del Modelo Fractal-Estocástico Unificado para resolver la discrepancia 
+            entre mediciones locales y del CMB de la constante de Hubble
+          </p>
+        </div>
+
+        {/* Panel de Control */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+          <div className="lg:col-span-1 bg-slate-800/50 backdrop-blur-sm rounded-xl p-6 border border-purple-500/20">
+            <h3 className="text-xl font-semibold mb-4 flex items-center">
+              <Calculator className="mr-2" /> Parámetros del Modelo
+            </h3>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium mb-2">
+                  Constante Fractal (∂)
+                </label>
+                <input
+                  type="number"
+                  step="0.001"
+                  value={parameters.fractalConstant}
+                  onChange={(e) => setParameters(prev => ({
+                    ...prev, fractalConstant: parseFloat(e.target.value) || 0.921
+                  }))}
+                  className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg focus:ring-2 focus:ring-purple-500"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium mb-2">
+                  H₀ Verdadero (km/s/Mpc)
+                </label>
+                <input
+                  type="number"
+                  step="0.1"
+                  value={parameters.hubbleTrue}
+                  onChange={(e) => setParameters(prev => ({
+                    ...prev, hubbleTrue: parseFloat(e.target.value) || 68.0
+                  }))}
+                  className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg focus:ring-2 focus:ring-purple-500"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium mb-2">
+                  Ω_fractal
+                </label>
+                <input
+                  type="number"
+                  step="0.001"
+                  value={parameters.omegaFractal}
+                  onChange={(e) => setParameters(prev => ({
+                    ...prev, omegaFractal: parseFloat(e.target.value) || 0.079
+                  }))}
+                  className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg focus:ring-2 focus:ring-purple-500"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium mb-2">
+                  Amplitud Estocástica (σ_H)
+                </label>
+                <input
+                  type="number"
+                  step="0.001"
+                  value={parameters.sigmaH}
+                  onChange={(e) => setParameters(prev => ({
+                    ...prev, sigmaH: parseFloat(e.target.value) || 0.02
+                  }))}
+                  className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg focus:ring-2 focus:ring-purple-500"
+                />
+              </div>
+            </div>
+            
+            <button
+              onClick={calculateSolution}
+              disabled={isCalculating}
+              className="w-full mt-6 px-4 py-2 bg-gradient-to-r from-purple-600 to-pink-600 rounded-lg font-semibold hover:from-purple-700 hover:to-pink-700 disabled:opacity-50 transition-all duration-200"
+            >
+              {isCalculating ? (
+                <div className="flex items-center justify-center">
+                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
+                  Calculando...
+                </div>
+              ) : (
+                'Recalcular Solución'
+              )}
+            </button>
+          </div>
+
+          {/* Resultados de Reconciliación */}
+          <div className="lg:col-span-2 bg-slate-800/50 backdrop-blur-sm rounded-xl p-6 border border-purple-500/20">
+            <h3 className="text-xl font-semibold mb-4 flex items-center">
+              <CheckCircle className="mr-2 text-green-400" /> Estado de la Reconciliación
+            </h3>
+            
+            {results && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <h4 className="text-lg font-medium mb-3 text-blue-400">Mediciones Locales</h4>
+                  <div className="space-y-2">
+                    {results.correctedLocal.map((obs, idx) => (
+                      <div key={idx} className="bg-slate-700/50 rounded-lg p-3">
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm text-gray-300">{obs.type}</span>
+                          <span className={`text-sm px-2 py-1 rounded ${obs.residual < 1.0 ? 'bg-green-600' : 'bg-orange-600'}`}>
+                            Δ = {obs.residual.toFixed(2)}
+                          </span>
+                        </div>
+                        <div className="mt-1">
+                          <span className="text-lg font-medium">
+                            {obs.H_obs.toFixed(1)} → {obs.H_corrected.toFixed(1)} km/s/Mpc
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                
+                <div>
+                  <h4 className="text-lg font-medium mb-3 text-pink-400">CMB + Estadísticas</h4>
+                  <div className="bg-slate-700/50 rounded-lg p-3 mb-4">
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-gray-300">Planck CMB</span>
+                      <span className={`text-sm px-2 py-1 rounded ${results.correctedCMB.residual < 1.0 ? 'bg-green-600' : 'bg-orange-600'}`}>
+                        Δ = {results.correctedCMB.residual.toFixed(2)}
+                      </span>
+                    </div>
+                    <div className="mt-1">
+                      <span className="text-lg font-medium">
+                        {results.correctedCMB.H_obs.toFixed(1)} → {results.correctedCMB.H_corrected.toFixed(1)} km/s/Mpc
+                      </span>
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <div className="flex justify-between">
+                      <span className="text-gray-300">H₀ Promedio:</span>
+                      <span className="font-medium">{results.statistics.meanH} km/s/Mpc</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-300">Dispersión:</span>
+                      <span className="font-medium">±{results.statistics.stdH} km/s/Mpc</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-300">χ²/dof:</span>
+                      <span className="font-medium">{results.statistics.chiSquared}/{results.statistics.dof}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-300">Estado:</span>
+                      <span className={`font-medium ${results.statistics.tensionResolved ? 'text-green-400' : 'text-orange-400'}`}>
+                        {results.statistics.tensionResolved ? 'RESUELTO' : 'PARCIAL'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Gráficos */}
+        {results && (
+          <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 mb-8">
+            {/* Parámetro de Hubble vs Redshift */}
+            <div className="bg-slate-800/50 backdrop-blur-sm rounded-xl p-6 border border-purple-500/20">
+              <h3 className="text-xl font-semibold mb-4 flex items-center">
+                <TrendingUp className="mr-2" /> H(z) Efectivo vs Redshift
+              </h3>
+              <ResponsiveContainer width="100%" height={300}>
+                <LineChart data={chartData}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+                  <XAxis dataKey="redshift" stroke="#9CA3AF" />
+                  <YAxis stroke="#9CA3AF" />
+                  <Tooltip 
+                    contentStyle={{ 
+                      backgroundColor: '#1F2937', 
+                      border: '1px solid #6B7280',
+                      borderRadius: '8px'
+                    }} 
+                  />
+                  <Legend />
+                  <Line 
+                    type="monotone" 
+                    dataKey="H_effective" 
+                    stroke="#8B5CF6" 
+                    strokeWidth={3}
+                    name="H_eff (km/s/Mpc)"
+                  />
+                  <ReferenceLine y={parameters.hubbleTrue} stroke="#EF4444" strokeDasharray="5 5" />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+
+            {/* Correcciones Fractales */}
+            <div className="bg-slate-800/50 backdrop-blur-sm rounded-xl p-6 border border-purple-500/20">
+              <h3 className="text-xl font-semibold mb-4 flex items-center">
+                <Zap className="mr-2" /> Correcciones Fractales (%)
+              </h3>
+              <ResponsiveContainer width="100%" height={300}>
+                <LineChart data={chartData}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+                  <XAxis dataKey="redshift" stroke="#9CA3AF" />
+                  <YAxis stroke="#9CA3AF" />
+                  <Tooltip 
+                    contentStyle={{ 
+                      backgroundColor: '#1F2937', 
+                      border: '1px solid #6B7280',
+                      borderRadius: '8px'
+                    }} 
+                  />
+                  <Legend />
+                  <Line 
+                    type="monotone" 
+                    dataKey="correction" 
+                    stroke="#10B981" 
+                    strokeWidth={3}
+                    name="Corrección Fractal (%)"
+                  />
+                  <ReferenceLine y={0} stroke="#6B7280" />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        )}
+
+        {/* Comparación Observacional */}
+        {results && (
+          <div className="bg-slate-800/50 backdrop-blur-sm rounded-xl p-6 border border-purple-500/20">
+            <h3 className="text-xl font-semibold mb-4">Comparación: Observaciones vs Modelo MFSU</h3>
+            <ResponsiveContainer width="100%" height={400}>
+              <ScatterChart data={observationalData}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+                <XAxis 
+                  dataKey="redshift" 
+                  stroke="#9CA3AF" 
+                  label={{ value: 'Redshift (z)', position: 'insideBottom', offset: -10 }}
+                />
+                <YAxis 
+                  stroke="#9CA3AF" 
+                  domain={[65, 75]}
+                  label={{ value: 'H₀ (km/s/Mpc)', angle: -90, position: 'insideLeft' }}
+                />
+                <Tooltip 
+                  contentStyle={{ 
+                    backgroundColor: '#1F2937', 
+                    border: '1px solid #6B7280',
+                    borderRadius: '8px'
+                  }}
+                  formatter={(value, name) => [value.toFixed(2), name]}
+                />
+                <Legend />
+                <Scatter 
+                  name="Observado" 
+                  dataKey="H_observed" 
+                  fill="#EF4444" 
+                />
+                <Scatter 
+                  name="MFSU Corregido" 
+                  dataKey="H_corrected" 
+                  fill="#10B981" 
+                />
+                <ReferenceLine y={parameters.hubbleTrue} stroke="#8B5CF6" strokeDasharray="5 5" />
+              </ScatterChart>
+            </ResponsiveContainer>
+          </div>
+        )}
+
+        {/* Footer con información técnica */}
+        <div className="text-center text-gray-400 text-sm mt-8">
+          <p>
+            Modelo MFSU: ∂ = {parameters.fractalConstant}, d_f = {(3 - parameters.fractalConstant).toFixed(3)}, 
+            Ω_∂ = {parameters.omegaFractal}, H = {parameters.hurstExponent}
+          </p>
+          <p className="mt-1">
+            Implementación basada en la teoría fractal-estocástica unificada para cosmología
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default HubbleTensionSolver;
