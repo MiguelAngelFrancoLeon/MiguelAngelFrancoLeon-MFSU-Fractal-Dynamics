@@ -90,6 +90,11 @@ https://doi.org/10.5281/zenodo.15828185
 🌌 You are part of the future.
 Let's reshape the science of reality — one simulation at a time.
 
+Authorship and Purpose
+Miguel Ángel Franco León, an independent researcher, presents this model as the culmination of a lifelong effort to unify physics through pure geometry.
+Without institutional support, this work aims to open a new paradigm in cosmology: that form precedes the particle, and that the universe is a living fractal in expansion.
+
+
 
 ## References
 
