@@ -94,7 +94,8 @@ Authorship and Purpose
 Miguel Ángel Franco León, an independent researcher, presents this model as the culmination of a lifelong effort to unify physics through pure geometry.
 Without institutional support, this work aims to open a new paradigm in cosmology: that form precedes the particle, and that the universe is a living fractal in expansion.
 
-
+## Protección de Autoría
+Este proyecto está registrado en Zenodo (DOI: 10.5281/zenodo.15828185) y protegido en IPFS (CID: bafybeifdhrmcd6q46qsbj7cdpztvg55u2k3jxfidfk2scowin7rmkyccjq, accesible en https://ipfs.io/ipfs/bafybeifdhrmcd6q46qsbj7cdpztvg55u2k3jxfidfk2scowin7rmkyccjq). Licencia: CC-BY-4.0. Por favor, cita al autor (Miguel Ángel Franco León) en cualquier uso.
 
 ## References
 
