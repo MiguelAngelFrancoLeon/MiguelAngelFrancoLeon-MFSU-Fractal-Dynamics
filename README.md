@@ -18,7 +18,7 @@
 
 ```bash
 # Clone the repository
-git clone https://github.com/MiguelAngelFrancoLeon/MFSU-Universal-Fractal-Constant.git
+git clone https://github.com/MiguelAngelFrancoLeon/MiguelAngelFrancoLeon-MFSU-Fractal-Dynamics/.git
 cd MFSU-Universal-Fractal-Constant
 
 # Install dependencies
