@@ -1,0 +1,76 @@
+# CITATION.cff for MFSU Universal Fractal Constant
+# https://citation-file-format.github.io/
+
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+type: software
+title: "MFSU: Unified Fractal-Stochastic Model"
+abstract: >-
+  The Unified Fractal-Stochastic Model (MFSU) reveals a universal 
+  fractal constant δF ≈ 0.921 that governs cosmic structure across 
+  scales, from quantum mechanics to cosmology. This repository 
+  contains the complete analysis code, data, and reproduction 
+  scripts for the Nature publication.
+
+authors:
+  - family-names: "Franco León"
+    given-names: "Miguel Ángel"
+    orcid: "https://orcid.org/0009-0003-9492-385x"  
+    email: "miguelfranco@mfsu-model.org"
+    affiliation: "Independent Researcher"
+
+repository-code: "https://github.com/MiguelAngelFrancoLeon/MiguelAngelFrancoLeon-MFSU-Fractal-Dynamics/"
+url: "https://mfsu-model.org"
+repository: "https://github.com/MiguelAngelFrancoLeon/MiguelAngelFrancoLeon-MFSU-Fractal-Dynamics/"
+repository-artifact: "https://zenodo.org/record/16316882"
+
+keywords:
+  - "fractal geometry"
+  - "cosmology"
+  - "cosmic microwave background"
+  - "superconductivity"
+  - "universal constants"
+  - "dark matter"
+  - "scale invariance"
+  - "complex systems"
+  - "stochastic processes"
+
+license: cc4
+version: "1.0.0"
+date-released: "2025-08-10"
+
+doi: "10.5281/zenodo.16316882"
+
+preferred-citation:
+  type: article
+  title: "A universal fractal constant governs cosmic structure across scales"
+  authors:
+    - family-names: "Franco León"
+      given-names: "Miguel Ángel"
+      orcid: "https://orcid.org/0009-0003-9492-385x"
+  journal: "Nature"
+  year: 2025
+  volume: TBD
+  issue: TBD
+  start: TBD
+  end: TBD
+  doi: "10.1038/nature.2025.xxxxx"
+  url: "https://www.nature.com/articles/nature.2025.xxxxx"
+
+references:
+  - type: article
+    title: "The Universal Fractal Law: Final Cosmological Validation of the MFSU Model"
+    authors:
+      - family-names: "Franco León"
+        given-names: "Miguel Ángel"
+    year: 2025
+    url: "https://zenodo.org/record/16316882"
+    doi: "10.5281/zenodo.16316882"
+  
+  - type: dataset
+    title: "Planck 2018 CMB Temperature Power Spectrum Analysis"
+    authors:
+      - name: "Planck Collaboration"
+    year: 2020
+    url: "https://pla.esac.esa.int"
+    doi: "10.1051/0004-6361/201833910"
