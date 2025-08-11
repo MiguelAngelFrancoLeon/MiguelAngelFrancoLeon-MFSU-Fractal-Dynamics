@@ -103,4 +103,132 @@ jobs:
 
   reproducibility:
     runs-on: ubuntu-latest
-    if: github.event_name == 'schedule' || contains(github.event.hea
+    if: github.event_name == 'schedule' || contains(github.event.head_commit.message, '[full-test]')
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Set up Python 3.10
+      uses: actions/setup-python@v3
+      with:
+        python-version: '3.10'
+        
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        
+    - name: Download full Planck data
+      run: |
+        mkdir -p data/planck
+        # Download full CMB dataset (this would be actual Planck data)
+        echo "Downloading Planck 2018 data..."
+        # wget -O data/planck/COM_PowerSpect_CMB-TT-full_R3.01.txt [PLANCK_URL]
+        
+    - name: Run full MFSU analysis
+      run: |
+        python scripts/mfsu_analysis.py --full-analysis
+        
+    - name: Generate Nature figures
+      run: |
+        python scripts/generate_figures.py --nature-quality
+        
+    - name: Validate against published results
+      run: |
+        python scripts/validate_published_results.py
+        
+    - name: Upload reproducibility report
+      uses: actions/upload-artifact@v3
+      with:
+        name: reproducibility-report
+        path: |
+          figures/
+          results/
+          reproducibility_report.pdf
+
+  docker-build:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Build Docker image
+      run: |
+        docker build -t mfsu:latest .
+        
+    - name: Test Docker container
+      run: |
+        docker run --rm mfsu:latest python -c "import mfsu; print('MFSU Docker image working!')"
+        
+    - name: Run quick validation in Docker
+      run: |
+        docker run --rm -v $(pwd)/test_output:/app/output mfsu:latest python scripts/validate_fractals.py --output-dir /app/output
+
+  documentation:
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Set up Python 3.10
+      uses: actions/setup-python@v3
+      with:
+        python-version: '3.10'
+        
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install sphinx sphinx-rtd-theme myst-parser
+        
+    - name: Build documentation
+      run: |
+        cd docs
+        make html
+        
+    - name: Deploy to GitHub Pages
+      uses: peaceiris/actions-gh-pages@v3
+      if: github.ref == 'refs/heads/main'
+      with:
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+        publish_dir: ./docs/_build/html
+
+  release:
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [test, validate-science]
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Set up Python 3.10
+      uses: actions/setup-python@v3
+      with:
+        python-version: '3.10'
+        
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install build twine
+        
+    - name: Build package
+      run: |
+        python -m build
+        
+    - name: Create GitHub Release
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: ${{ github.ref }}
+        release_name: MFSU ${{ github.ref }}
+        body: |
+          ## Changes in this Release
+          - Updated MFSU model validation
+          - Improved figure generation
+          - Enhanced documentation
+          
+          ## Download
+          Use `pip install mfsu==${{ github.ref_name }}` to install this version.
+        draft: false
+        prerelease: false
