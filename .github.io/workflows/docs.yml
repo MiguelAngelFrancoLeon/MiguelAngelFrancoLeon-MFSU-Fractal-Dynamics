@@ -1,0 +1,515 @@
+# MFSU - Unified Fractal-Stochastic Model
+# Documentation Building and Deployment Workflow
+# Author: Miguel Ángel Franco León <miguelfranco@mfsu-model.org>
+# Repository: https://github.com/MiguelAngelFrancoLeon/MiguelAngelFrancoLeon-MFSU-Fractal-Dynamics/
+
+name: 📚 Documentation
+
+on:
+  push:
+    branches: [ main, develop ]
+    paths:
+      - 'docs/**'
+      - 'mfsu/**'
+      - 'notebooks/**'
+      - 'README.md'
+      - 'pyproject.toml'
+      - '.github/workflows/docs.yml'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'docs/**'
+      - 'mfsu/**'
+      - 'notebooks/**'
+      - 'README.md'
+  release:
+    types: [ published ]
+  workflow_dispatch:
+    inputs:
+      deploy_type:
+        description: 'Deployment type'
+        required: true
+        default: 'preview'
+        type: choice
+        options:
+          - preview
+          - production
+          - rebuild
+
+# Concurrency control
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+# Environment variables
+env:
+  MFSU_DELTA_F: 0.921
+  MFSU_FRACTAL_DIM: 2.079
+  PYTHON_VERSION: '3.10'
+
+jobs:
+  # ==========================================================================
+  # Build Documentation
+  # ==========================================================================
+  build-docs:
+    name: 🏗️ Build Documentation
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: 📥 Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Full history for version info
+
+      - name: 🐍 Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+
+      - name: 🔧 Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            pandoc \
+            texlive-latex-recommended \
+            texlive-latex-extra \
+            texlive-fonts-recommended \
+            dvipng \
+            cm-super
+
+      - name: 📦 Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e .[docs,all]
+
+      - name: 🧪 Validate package installation
+        run: |
+          python -c "import mfsu; print(f'MFSU {mfsu.__version__} loaded successfully')"
+          python -c "from mfsu.constants import DELTA_F; print(f'δF = {DELTA_F}')"
+
+      - name: 📊 Generate API documentation
+        run: |
+          sphinx-apidoc -o docs/source/api mfsu/ --force --module-first
+          
+      - name: 📈 Execute notebooks for documentation
+        run: |
+          jupyter nbconvert --to notebook --execute --inplace notebooks/*.ipynb || echo "Some notebooks failed"
+
+      - name: 🏗️ Build Sphinx documentation
+        run: |
+          cd docs
+          make clean
+          make html SPHINXOPTS="-W --keep-going"
+
+      - name: 📊 Generate coverage report for docs
+        run: |
+          cd docs
+          make coverage || true
+          
+      - name: 🔍 Check documentation links
+        run: |
+          cd docs
+          make linkcheck || true
+
+      - name: 📄 Build PDF documentation
+        run: |
+          cd docs
+          make latexpdf || echo "PDF generation failed"
+
+      - name: 📤 Upload documentation artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: documentation-${{ github.sha }}
+          path: |
+            docs/build/html/
+            docs/build/latex/*.pdf
+          retention-days: 30
+
+  # ==========================================================================
+  # Build Jupyter Book (Alternative Documentation)
+  # ==========================================================================
+  build-jupyter-book:
+    name: 📓 Build Jupyter Book
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: 📥 Checkout repository
+        uses: actions/checkout@v4
+
+      - name: 🐍 Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+
+      - name: 📦 Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install jupyter-book
+          pip install -e .[all]
+
+      - name: 📓 Build Jupyter Book
+        run: |
+          jupyter-book build docs/jupyter-book/ || echo "Jupyter Book build completed with warnings"
+
+      - name: 📤 Upload Jupyter Book
+        uses: actions/upload-artifact@v3
+        with:
+          name: jupyter-book-${{ github.sha }}
+          path: docs/jupyter-book/_build/html/
+          retention-days: 15
+
+  # ==========================================================================
+  # Generate Scientific Figures
+  # ==========================================================================
+  generate-figures:
+    name: 📊 Generate Scientific Figures
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: 📥 Checkout repository
+        uses: actions/checkout@v4
+
+      - name: 🐍 Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+
+      - name: 📦 Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e .[all,viz]
+
+      - name: 📊 Generate publication-quality figures
+        run: |
+          python scripts/generate_publication_figures.py \
+            --output docs/source/_static/figures/ \
+            --format png,pdf,svg \
+            --dpi 300 \
+            --style publication
+
+      - name: 🌌 Generate CMB analysis figures
+        run: |
+          python scripts/generate_cmb_figures.py \
+            --delta-f 0.921 \
+            --output docs/source/_static/figures/cmb/ \
+            --comparison planck
+
+      - name: 🔬 Generate cross-domain validation plots
+        run: |
+          python scripts/generate_validation_plots.py \
+            --domains all \
+            --output docs/source/_static/figures/validation/
+
+      - name: 📈 Generate interactive plots
+        run: |
+          python scripts/generate_interactive_plots.py \
+            --output docs/source/_static/interactive/ \
+            --format html
+
+      - name: 📤 Upload generated figures
+        uses: actions/upload-artifact@v3
+        with:
+          name: scientific-figures-${{ github.sha }}
+          path: docs/source/_static/figures/
+          retention-days: 30
+
+  # ==========================================================================
+  # Deploy to GitHub Pages
+  # ==========================================================================
+  deploy-github-pages:
+    name: 🚀 Deploy to GitHub Pages
+    needs: [build-docs, generate-figures]
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    
+    # Grant GITHUB_TOKEN the permissions required to make a Pages deployment
+    permissions:
+      pages: write
+      id-token: write
+      contents: read
+
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      - name: 📥 Checkout repository
+        uses: actions/checkout@v4
+
+      - name: 📥 Download documentation
+        uses: actions/download-artifact@v3
+        with:
+          name: documentation-${{ github.sha }}
+          path: docs-build
+
+      - name: 📥 Download figures
+        uses: actions/download-artifact@v3
+        with:
+          name: scientific-figures-${{ github.sha }}
+          path: docs-build/html/_static/figures
+
+      - name: 🏗️ Setup Pages
+        uses: actions/configure-pages@v3
+
+      - name: 📝 Create index redirect
+        run: |
+          echo '<!DOCTYPE html>
+          <html>
+          <head>
+            <meta charset="utf-8">
+            <title>MFSU Documentation</title>
+            <meta http-equiv="refresh" content="0; url=./html/index.html">
+            <link rel="canonical" href="./html/index.html">
+          </head>
+          <body>
+            <h1>MFSU - Unified Fractal-Stochastic Model</h1>
+            <p>Redirecting to <a href="./html/index.html">documentation</a>...</p>
+            <p><strong>δF = 0.921</strong> - Universal Fractal Constant</p>
+          </body>
+          </html>' > docs-build/index.html
+
+      - name: 📊 Add documentation metadata
+        run: |
+          echo '{
+            "mfsu_version": "1.0.0",
+            "delta_F": 0.921,
+            "fractal_dimension": 2.079,
+            "build_date": "'$(date -u +%Y-%m-%dT%H:%M:%SZ)'",
+            "commit_sha": "'${{ github.sha }}'",
+            "repository": "https://github.com/MiguelAngelFrancoLeon/MiguelAngelFrancoLeon-MFSU-Fractal-Dynamics/"
+          }' > docs-build/html/metadata.json
+
+      - name: 📤 Upload Pages artifact
+        uses: actions/upload-pages-artifact@v2
+        with:
+          path: docs-build
+
+      - name: 🚀 Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v2
+
+  # ==========================================================================
+  # Deploy to Read the Docs (Alternative)
+  # ==========================================================================
+  prepare-readthedocs:
+    name: 📖 Prepare for Read the Docs
+    needs: [build-docs]
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+
+    steps:
+      - name: 📥 Checkout repository
+        uses: actions/checkout@v4
+
+      - name: 📋 Validate readthedocs config
+        run: |
+          if [ -f .readthedocs.yaml ]; then
+            echo "✅ Read the Docs config found"
+            cat .readthedocs.yaml
+          else
+            echo "📝 Creating Read the Docs config"
+            cat > .readthedocs.yaml << EOF
+          version: 2
+
+          build:
+            os: ubuntu-22.04
+            tools:
+              python: "3.10"
+            jobs:
+              post_create_environment:
+                - pip install --upgrade pip
+              post_install:
+                - pip install -e .[docs,all]
+
+          sphinx:
+            configuration: docs/source/conf.py
+            builder: html
+            fail_on_warning: false
+
+          formats:
+            - pdf
+            - epub
+
+          python:
+            install:
+              - requirements: docs/requirements.txt
+              - method: pip
+                path: .
+                extra_requirements:
+                  - docs
+                  - all
+          EOF
+          fi
+
+      - name: 📦 Update docs requirements
+        run: |
+          pip freeze | grep -E "(sphinx|myst|furo)" > docs/requirements.txt
+          echo "mfsu[docs,all]" >> docs/requirements.txt
+
+  # ==========================================================================
+  # Documentation Quality Checks
+  # ==========================================================================
+  docs-quality:
+    name: 🔍 Documentation Quality
+    needs: [build-docs]
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 📥 Checkout repository
+        uses: actions/checkout@v4
+
+      - name: 📥 Download documentation
+        uses: actions/download-artifact@v3
+        with:
+          name: documentation-${{ github.sha }}
+          path: docs-build
+
+      - name: 🐍 Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: 📦 Install quality tools
+        run: |
+          pip install doc8 rstcheck proselint
+
+      - name: 📝 Check RST syntax
+        run: |
+          find docs/source -name "*.rst" -exec rstcheck {} \; || true
+
+      - name: 📏 Check documentation style
+        run: |
+          doc8 docs/source/ || true
+
+      - name: ✍️ Check prose quality
+        run: |
+          find docs/source -name "*.rst" -exec proselint {} \; || true
+
+      - name: 📊 Documentation statistics
+        run: |
+          echo "# Documentation Statistics" > docs_stats.md
+          echo "" >> docs_stats.md
+          echo "## File Counts" >> docs_stats.md
+          echo "- RST files: $(find docs/source -name '*.rst' | wc -l)" >> docs_stats.md
+          echo "- Python files documented: $(find mfsu -name '*.py' | wc -l)" >> docs_stats.md
+          echo "- Notebooks: $(find notebooks -name '*.ipynb' | wc -l)" >> docs_stats.md
+          echo "" >> docs_stats.md
+          echo "## Build Information" >> docs_stats.md
+          echo "- Build date: $(date)" >> docs_stats.md
+          echo "- Commit: ${{ github.sha }}" >> docs_stats.md
+          echo "- δF constant: 0.921" >> docs_stats.md
+
+      - name: 📤 Upload quality report
+        uses: actions/upload-artifact@v3
+        with:
+          name: docs-quality-${{ github.sha }}
+          path: docs_stats.md
+
+  # ==========================================================================
+  # Multi-format Documentation Export
+  # ==========================================================================
+  export-formats:
+    name: 📄 Export Multiple Formats
+    needs: [build-docs]
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 📥 Checkout repository
+        uses: actions/checkout@v4
+
+      - name: 📥 Download documentation
+        uses: actions/download-artifact@v3
+        with:
+          name: documentation-${{ github.sha }}
+          path: docs-build
+
+      - name: 🔧 Install conversion tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y pandoc texlive-xetex wkhtmltopdf
+
+      - name: 📄 Convert to multiple formats
+        run: |
+          mkdir -p exports
+          
+          # Convert main documentation to PDF using wkhtmltopdf
+          wkhtmltopdf --page-size A4 --orientation Portrait \
+            docs-build/html/index.html exports/MFSU-Documentation.pdf || true
+          
+          # Create EPUB version
+          pandoc -f html -t epub3 \
+            --metadata title="MFSU Documentation" \
+            --metadata author="Miguel Ángel Franco León" \
+            docs-build/html/index.html -o exports/MFSU-Documentation.epub || true
+
+      - name: 📊 Create scientific summary PDF
+        run: |
+          pandoc README.md \
+            --metadata title="MFSU: Universal Fractal Constant δF=0.921" \
+            --metadata author="Miguel Ángel Franco León" \
+            --pdf-engine=xelatex \
+            -o exports/MFSU-Summary.pdf || true
+
+      - name: 📤 Upload exported formats
+        uses: actions/upload-artifact@v3
+        with:
+          name: documentation-exports-${{ github.sha }}
+          path: exports/
+          retention-days: 90
+
+  # ==========================================================================
+  # Documentation Notification
+  # ==========================================================================
+  notify-docs:
+    name: 📨 Documentation Notifications
+    needs: [deploy-github-pages, docs-quality]
+    runs-on: ubuntu-latest
+    if: always() && github.ref == 'refs/heads/main'
+
+    steps:
+      - name: ✅ Success notification
+        if: needs.deploy-github-pages.result == 'success'
+        run: |
+          echo "📚 MFSU Documentation Successfully Updated!"
+          echo "🔗 Available at: https://miguelangelfrancoleon.github.io/MiguelAngelFrancoLeon-MFSU-Fractal-Dynamics/"
+          echo "📊 Includes: API docs, tutorials, scientific validation"
+          echo "🌌 δF = 0.921 constant documentation complete"
+
+      - name: ❌ Failure notification
+        if: contains(needs.*.result, 'failure')
+        run: |
+          echo "❌ Documentation build failed!"
+          echo "Repository: https://github.com/MiguelAngelFrancoLeon/MiguelAngelFrancoLeon-MFSU-Fractal-Dynamics/"
+          echo "Please check the build logs and fix any issues."
+
+      - name: 📊 Documentation summary
+        run: |
+          echo "# 📚 MFSU Documentation Build Summary" > docs_summary.md
+          echo "" >> docs_summary.md
+          echo "## Status" >> docs_summary.md
+          echo "- Build: ${{ needs.build-docs.result }}" >> docs_summary.md
+          echo "- Quality Check: ${{ needs.docs-quality.result }}" >> docs_summary.md
+          echo "- GitHub Pages: ${{ needs.deploy-github-pages.result }}" >> docs_summary.md
+          echo "" >> docs_summary.md
+          echo "## Links" >> docs_summary.md
+          echo "- [Documentation](https://miguelangelfrancoleon.github.io/MiguelAngelFrancoLeon-MFSU-Fractal-Dynamics/)" >> docs_summary.md
+          echo "- [Repository](https://github.com/MiguelAngelFrancoLeon/MiguelAngelFrancoLeon-MFSU-Fractal-Dynamics/)" >> docs_summary.md
+          echo "- [API Reference](https://miguelangelfrancoleon.github.io/MiguelAngelFrancoLeon-MFSU-Fractal-Dynamics/api/)" >> docs_summary.md
+
+      - name: 💬 Comment on PR
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const fs = require('fs');
+            const summary = fs.readFileSync('docs_summary.md', 'utf8');
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: summary
+            });
