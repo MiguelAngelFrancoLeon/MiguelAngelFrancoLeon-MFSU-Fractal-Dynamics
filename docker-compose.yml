@@ -1,0 +1,491 @@
+# MFSU - Unified Fractal-Stochastic Model
+# Docker Compose orchestration for complete scientific workflow
+# Author: Miguel Ángel Franco León <miguerlfranco@mfsu-model.org>
+# Repository: https://github.com/MiguelAngelFrancoLeon/MiguelAngelFrancoLeon-MFSU-Fractal-Dynamics/
+# Date: August 2025
+
+version: '3.8'
+
+# ============================================================================
+# Services Definition
+# ============================================================================
+services:
+
+  # --------------------------------------------------------------------------
+  # Development Environment - Jupyter Lab + Interactive Computing
+  # --------------------------------------------------------------------------
+  mfsu-jupyter:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: mfsu-dev
+    image: mfsu:dev
+    container_name: mfsu-jupyter-dev
+    ports:
+      - "8888:8888"    # Jupyter Lab
+      - "8080:8080"    # Alternative web interface
+      - "6006:6006"    # TensorBoard (if needed)
+    volumes:
+      # Persistent data storage
+      - ./data:/mfsu/data:rw
+      - ./results:/mfsu/results:rw
+      - ./notebooks:/mfsu/notebooks:rw
+      - ./cache:/mfsu/cache:rw
+      - ./logs:/mfsu/logs:rw
+      # Development source code (live editing)
+      - ./mfsu:/mfsu/mfsu:rw
+      - ./scripts:/mfsu/scripts:rw
+      - ./tests:/mfsu/tests:rw
+    environment:
+      - MFSU_ENV=development
+      - MFSU_DELTA_F=0.921
+      - MFSU_FRACTAL_DIM=2.079
+      - MFSU_HURST=0.541
+      - JUPYTER_ENABLE_LAB=yes
+      - JUPYTER_TOKEN=""
+      - PYTHONPATH=/mfsu:/mfsu/mfsu
+      - OMP_NUM_THREADS=4
+      - NUMBA_THREADING_LAYER=omp
+    networks:
+      - mfsu-network
+    healthcheck:
+      test: ["CMD", "/mfsu/healthcheck.sh"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    restart: unless-stopped
+    profiles:
+      - dev
+      - full
+
+  # --------------------------------------------------------------------------
+  # Production Worker - Batch Analysis and Simulations
+  # --------------------------------------------------------------------------
+  mfsu-worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: mfsu-production
+    image: mfsu:production
+    container_name: mfsu-analysis-worker
+    volumes:
+      - ./data:/mfsu/data:ro
+      - ./results:/mfsu/results:rw
+      - ./cache:/mfsu/cache:rw
+      - ./logs:/mfsu/logs:rw
+      - worker-tmp:/tmp
+    environment:
+      - MFSU_ENV=production
+      - MFSU_DELTA_F=0.921
+      - MFSU_FRACTAL_DIM=2.079
+      - MFSU_HURST=0.541
+      - MFSU_WORKER_ID=worker-01
+      - OMP_NUM_THREADS=8
+      - OPENBLAS_NUM_THREADS=1
+      - MKL_NUM_THREADS=1
+      - NUMBA_CACHE_DIR=/mfsu/cache/numba
+    networks:
+      - mfsu-network
+    command: >
+      conda run -n mfsu python scripts/batch_analysis.py
+      --config /mfsu/config/production.yaml
+      --output /mfsu/results/
+      --log-level INFO
+    healthcheck:
+      test: ["CMD", "python", "-c", "import mfsu; print('Worker OK')"]
+      interval: 60s
+      timeout: 15s
+      retries: 3
+    restart: on-failure
+    deploy:
+      resources:
+        limits:
+          memory: 16G
+          cpus: '8'
+    profiles:
+      - production
+      - worker
+      - full
+
+  # --------------------------------------------------------------------------
+  # CMB Analysis Service - Specialized Planck Data Processing
+  # --------------------------------------------------------------------------
+  mfsu-cmb:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: mfsu-production
+    image: mfsu:production
+    container_name: mfsu-cmb-analyzer
+    volumes:
+      - ./data/cmb:/mfsu/data/cmb:ro
+      - ./results/cmb:/mfsu/results/cmb:rw
+      - ./cache/cmb:/mfsu/cache/cmb:rw
+      - cmb-tmp:/tmp
+    environment:
+      - MFSU_ENV=cmb_analysis
+      - MFSU_DELTA_F=0.921
+      - HEALPIX_DATA=/mfsu/data/healpix
+      - PLANCK_DATA_PATH=/mfsu/data/cmb/planck
+      - OMP_NUM_THREADS=16
+    networks:
+      - mfsu-network
+    command: >
+      conda run -n mfsu mfsu-cmb
+      --input /mfsu/data/cmb/planck_maps.fits
+      --output /mfsu/results/cmb/
+      --delta-f 0.921
+      --nside 2048
+      --analysis-type full
+      --bootstrap-samples 1000
+    shm_size: 4g
+    deploy:
+      resources:
+        limits:
+          memory: 32G
+          cpus: '16'
+    profiles:
+      - cmb
+      - analysis
+      - full
+
+  # --------------------------------------------------------------------------
+  # Fractal Simulation Service - Large Scale Monte Carlo
+  # --------------------------------------------------------------------------
+  mfsu-simulator:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: mfsu-production
+    image: mfsu:production
+    container_name: mfsu-fractal-simulator
+    volumes:
+      - ./results/simulations:/mfsu/results/simulations:rw
+      - ./cache/simulations:/mfsu/cache/simulations:rw
+      - sim-tmp:/tmp
+    environment:
+      - MFSU_ENV=simulation
+      - MFSU_DELTA_F=0.921
+      - MFSU_SIMULATION_SEEDS=42,123,456,789,999
+      - CUDA_VISIBLE_DEVICES=0  # If GPU available
+      - OMP_NUM_THREADS=12
+    networks:
+      - mfsu-network
+    command: >
+      conda run -n mfsu mfsu-simulate
+      --type montecarlo
+      --delta-f 0.921
+      --samples 100000
+      --domains diffusion,cmb,superconductor
+      --output /mfsu/results/simulations/
+      --parallel 8
+    deploy:
+      resources:
+        limits:
+          memory: 24G
+          cpus: '12'
+    profiles:
+      - simulation
+      - compute
+      - full
+
+  # --------------------------------------------------------------------------
+  # Web Dashboard - Results Visualization and Monitoring
+  # --------------------------------------------------------------------------
+  mfsu-dashboard:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: mfsu-dev
+    image: mfsu:dev
+    container_name: mfsu-web-dashboard
+    ports:
+      - "8050:8050"    # Dash/Plotly dashboard
+      - "8051:8051"    # Bokeh server
+    volumes:
+      - ./results:/mfsu/results:ro
+      - ./data:/mfsu/data:ro
+      - ./web:/mfsu/web:rw
+    environment:
+      - MFSU_ENV=dashboard
+      - DASH_HOST=0.0.0.0
+      - DASH_PORT=8050
+      - DASH_DEBUG=False
+    networks:
+      - mfsu-network
+    command: >
+      conda run -n mfsu python web/dashboard.py
+      --host 0.0.0.0
+      --port 8050
+      --data-path /mfsu/results/
+    depends_on:
+      - mfsu-worker
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8050/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+    profiles:
+      - dashboard
+      - web
+      - full
+
+  # --------------------------------------------------------------------------
+  # Database Service - Results and Metadata Storage
+  # --------------------------------------------------------------------------
+  mfsu-database:
+    image: postgres:15-alpine
+    container_name: mfsu-postgres-db
+    environment:
+      - POSTGRES_DB=mfsu
+      - POSTGRES_USER=mfsu_user
+      - POSTGRES_PASSWORD=mfsu_secure_password_2025
+      - PGDATA=/var/lib/postgresql/data/pgdata
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./database/init:/docker-entrypoint-initdb.d:ro
+    ports:
+      - "5432:5432"
+    networks:
+      - mfsu-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U mfsu_user -d mfsu"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    restart: unless-stopped
+    profiles:
+      - database
+      - full
+
+  # --------------------------------------------------------------------------
+  # Redis Cache - Fast Data Storage and Job Queue
+  # --------------------------------------------------------------------------
+  mfsu-redis:
+    image: redis:7-alpine
+    container_name: mfsu-redis-cache
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    environment:
+      - REDIS_PASSWORD=mfsu_redis_2025
+    networks:
+      - mfsu-network
+    command: >
+      redis-server --appendonly yes --requirepass mfsu_redis_2025
+      --maxmemory 2gb --maxmemory-policy allkeys-lru
+    healthcheck:
+      test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+    profiles:
+      - cache
+      - full
+
+  # --------------------------------------------------------------------------
+  # File Server - HTTP Access to Results and Data
+  # --------------------------------------------------------------------------
+  mfsu-fileserver:
+    image: nginx:alpine
+    container_name: mfsu-file-server
+    ports:
+      - "8090:80"
+    volumes:
+      - ./results:/usr/share/nginx/html/results:ro
+      - ./data:/usr/share/nginx/html/data:ro
+      - ./docs/build:/usr/share/nginx/html/docs:ro
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+    networks:
+      - mfsu-network
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+    profiles:
+      - fileserver
+      - web
+      - full
+
+# ============================================================================
+# Networks Configuration
+# ============================================================================
+networks:
+  mfsu-network:
+    driver: bridge
+    name: mfsu-network
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
+          gateway: 172.20.0.1
+
+# ============================================================================
+# Volumes Configuration
+# ============================================================================
+volumes:
+  # Persistent data storage
+  postgres-data:
+    name: mfsu-postgres-data
+    driver: local
+  
+  redis-data:
+    name: mfsu-redis-data
+    driver: local
+  
+  # Temporary volumes
+  worker-tmp:
+    name: mfsu-worker-tmp
+    driver: local
+  
+  cmb-tmp:
+    name: mfsu-cmb-tmp
+    driver: local
+  
+  sim-tmp:
+    name: mfsu-sim-tmp
+    driver: local
+
+# ============================================================================
+# Usage Instructions and Commands
+# ============================================================================
+
+# Quick Start Commands:
+# 
+# Development setup (Jupyter + basic services):
+# docker-compose --profile dev up -d
+# 
+# Full production stack:
+# docker-compose --profile full up -d
+# 
+# CMB analysis only:
+# docker-compose --profile cmb up -d
+# 
+# Large-scale simulations:
+# docker-compose --profile simulation up -d
+# 
+# Web dashboard + visualization:
+# docker-compose --profile web up -d
+
+# Individual Service Commands:
+#
+# Start Jupyter for development:
+# docker-compose up mfsu-jupyter
+#
+# Run batch analysis:
+# docker-compose run --rm mfsu-worker conda run -n mfsu python scripts/analyze_all.py
+#
+# Process CMB data:
+# docker-compose run --rm mfsu-cmb conda run -n mfsu mfsu-cmb --input data/planck.fits
+#
+# Run simulations:
+# docker-compose run --rm mfsu-simulator conda run -n mfsu mfsu-simulate --samples 50000
+
+# Scaling Commands:
+#
+# Scale workers for parallel processing:
+# docker-compose up --scale mfsu-worker=4
+#
+# Scale simulators for Monte Carlo:
+# docker-compose up --scale mfsu-simulator=8
+
+# Monitoring and Logs:
+#
+# View all logs:
+# docker-compose logs -f
+#
+# Monitor specific service:
+# docker-compose logs -f mfsu-worker
+#
+# Check service status:
+# docker-compose ps
+#
+# View resource usage:
+# docker stats
+
+# Data Management:
+#
+# Backup results:
+# docker run --rm -v mfsu_results:/data -v $(pwd)/backup:/backup alpine tar czf /backup/mfsu-results-$(date +%Y%m%d).tar.gz /data
+#
+# Restore results:
+# docker run --rm -v mfsu_results:/data -v $(pwd)/backup:/backup alpine tar xzf /backup/mfsu-results-YYYYMMDD.tar.gz -C /
+#
+# Clean temporary data:
+# docker-compose down -v --remove-orphans
+
+# Performance Optimization:
+#
+# For large datasets, increase shared memory:
+# Add to service: shm_size: 8g
+#
+# For GPU acceleration (if available):
+# Add to service: runtime: nvidia, environment: CUDA_VISIBLE_DEVICES=0
+#
+# For memory-intensive operations:
+# Add to service: deploy.resources.limits.memory: 64G
+
+# Security Considerations:
+#
+# Production deployment:
+# - Change default passwords in environment variables
+# - Use Docker secrets for sensitive data
+# - Enable firewall rules for exposed ports
+# - Use non-root user in containers
+# - Enable audit logging
+#
+# Example secrets configuration:
+# secrets:
+#   postgres_password:
+#     file: ./secrets/postgres_password.txt
+#   redis_password:
+#     file: ./secrets/redis_password.txt
+
+# Environment-Specific Configurations:
+#
+# Development: --profile dev
+# - Jupyter Lab with live code editing
+# - Debug logging enabled
+# - Auto-restart on code changes
+#
+# Testing: --profile test  
+# - Minimal services for CI/CD
+# - Test data only
+# - Fast startup time
+#
+# Production: --profile production
+# - Optimized for performance
+# - Resource limits enforced
+# - Health checks enabled
+# - Logging to external systems
+#
+# Full Stack: --profile full
+# - All services including monitoring
+# - Complete workflow support
+# - Maximum functionality
+
+# Integration with External Systems:
+#
+# Connect to existing databases:
+# - Modify postgres service or use external_links
+#
+# Use external file storage:
+# - Mount NFS/CIFS volumes instead of local directories
+#
+# Integrate with Kubernetes:
+# - Use kompose to convert to K8s manifests
+# - kubectl apply -f k8s-manifests/
+#
+# CI/CD Integration:
+# - Use in GitHub Actions with setup-docker
+# - Automated testing with docker-compose -f docker-compose.test.yml
+
+# Repository: https://github.com/MiguelAngelFrancoLeon/MiguelAngelFrancoLeon-MFSU-Fractal-Dynamics/
+# Maintainer: Miguel Ángel Franco León <miguerlfranco@mfsu-model.org>
+# Documentation: See README.md and docs/ for detailed usage instructions
+# License: MIT - See LICENSE file for details
