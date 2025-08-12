@@ -1,0 +1,379 @@
+# MFSU - Unified Fractal-Stochastic Model
+# Modern Python packaging configuration (PEP 621)
+# Author: Miguel Ángel Franco León
+# Date: August 2025
+
+[build-system]
+requires = [
+    "setuptools>=65.0.0",
+    "wheel>=0.37.0",
+    "cython>=0.29.0",
+    "numpy>=1.20.0",
+]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "mfsu"
+dynamic = ["version"]
+description = "Unified Fractal-Stochastic Model for complex systems in physics and cosmology"
+readme = "README.md"
+license = {text = "MIT"}
+authors = [
+    {name = "Miguel Ángel Franco León", email = "miguelfranco@mfsu-model.org"},
+]
+maintainers = [
+    {name = "Miguel Ángel Franco León", email = "miguelfranco@mfsu-model.org"},
+]
+keywords = [
+    "fractal", 
+    "stochastic", 
+    "cosmology", 
+    "physics", 
+    "CMB", 
+    "superconductivity", 
+    "diffusion", 
+    "scaling", 
+    "universality",
+    "delta-F", 
+    "MFSU", 
+    "scientific-computing", 
+    "astrophysics"
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Science/Research",
+    "Intended Audience :: Education",
+    "Intended Audience :: Developers",
+    "Topic :: Scientific/Engineering :: Physics",
+    "Topic :: Scientific/Engineering :: Astronomy", 
+    "Topic :: Scientific/Engineering :: Mathematics",
+    "Topic :: Scientific/Engineering :: Visualization",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10", 
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Operating System :: OS Independent",
+    "Natural Language :: English",
+    "Environment :: Console",
+]
+requires-python = ">=3.8"
+dependencies = [
+    "numpy>=1.20.0",
+    "scipy>=1.8.0",
+    "matplotlib>=3.5.0", 
+    "pandas>=1.4.0",
+    "scikit-learn>=1.1.0",
+    "tqdm>=4.60.0",
+    "pyyaml>=6.0",
+    "click>=8.0.0",
+]
+
+[project.optional-dependencies]
+# Astronomy and cosmology
+astro = [
+    "astropy>=5.0.0",
+    "healpy>=1.15.0", 
+    "camb>=1.4.0",
+]
+
+# Statistical analysis
+stats = [
+    "emcee>=3.1.0",
+    "corner>=2.2.0", 
+    "statsmodels>=0.13.0",
+    "arviz>=0.12.0",
+]
+
+# Visualization
+viz = [
+    "plotly>=5.10.0",
+    "seaborn>=0.11.0",
+    "bokeh>=2.4.0", 
+    "ipywidgets>=8.0.0",
+]
+
+# Development tools
+dev = [
+    "pytest>=7.0.0",
+    "pytest-cov>=4.0.0",
+    "pytest-xdist>=2.5.0",
+    "black>=22.0.0",
+    "flake8>=5.0.0",
+    "mypy>=0.991",
+    "pre-commit>=2.20.0",
+    "isort>=5.10.0",
+    "bandit>=1.7.0",
+    "safety>=2.0.0",
+]
+
+# Documentation
+docs = [
+    "sphinx>=5.0.0",
+    "sphinx-rtd-theme>=1.0.0",
+    "myst-parser>=0.18.0",
+    "sphinx-autodoc-typehints>=1.19.0", 
+    "sphinx-copybutton>=0.5.0",
+    "nbsphinx>=0.8.0",
+]
+
+# Performance optimization
+perf = [
+    "numba>=0.56.0",
+    "dask>=2022.8.0",
+    "joblib>=1.2.0", 
+    "cython>=0.29.0",
+]
+
+# Scientific computing extras
+science = [
+    "sympy>=1.10.0",
+    "h5py>=3.7.0",
+    "netcdf4>=1.6.0",
+    "xarray>=2022.6.0",
+]
+
+# Complete installation
+all = [
+    "astropy>=5.0.0", "healpy>=1.15.0", "camb>=1.4.0",  # astro
+    "emcee>=3.1.0", "corner>=2.2.0", "statsmodels>=0.13.0", "arviz>=0.12.0",  # stats
+    "plotly>=5.10.0", "seaborn>=0.11.0", "bokeh>=2.4.0", "ipywidgets>=8.0.0",  # viz
+    "numba>=0.56.0", "dask>=2022.8.0", "joblib>=1.2.0", "cython>=0.29.0",  # perf
+    "sympy>=1.10.0", "h5py>=3.7.0", "netcdf4>=1.6.0", "xarray>=2022.6.0",  # science
+]
+
+[project.scripts]
+mfsu = "mfsu.cli.main:main"
+mfsu-analyze = "mfsu.cli.analyze:main"
+mfsu-simulate = "mfsu.cli.simulate:main"
+mfsu-validate = "mfsu.cli.validate:main" 
+mfsu-plot = "mfsu.cli.plot:main"
+mfsu-cmb = "mfsu.cli.cmb:main"
+mfsu-fractal = "mfsu.cli.fractal:main"
+
+[project.urls]
+Homepage = "https://github.com/"
+Documentation = "https://mfsu.readthedocs.io/"
+Repository = "https://github.com/MiguelAngelFrancoLeon/MiguelAngelFrancoLeon-MFSU-Fractal-Dynamics/"
+"Bug Reports" = "https://github.com/MiguelAngelFrancoLeon/MiguelAngelFrancoLeon-MFSU-Fractal-Dynamics//issues"
+Changelog = "https://github.com/MiguelAngelFrancoLeon/MiguelAngelFrancoLeon-MFSU-Fractal-Dynamics/blob/main/CHANGELOG.md"
+Funding = "https://github.com/sponsors/MiguelAngelFrancoLeon"
+"Zenodo Dataset" = "https://doi.org/10.5281/zenodo.16316882"
+"arXiv Paper" = "https://arxiv.org/abs/"
+
+# Tool configurations
+
+[tool.setuptools]
+zip-safe = false
+include-package-data = true
+
+[tool.setuptools.dynamic]
+version = {attr = "mfsu.__version__"}
+
+[tool.setuptools.packages.find]
+exclude = ["tests*", "docs*"]
+
+[tool.setuptools.package-data]
+mfsu = [
+    "data/reference/*.csv",
+    "data/reference/*.json",
+    "data/templates/*.yaml", 
+    "config/*.yaml",
+    "tests/data/*.fits",
+    "tests/data/*.h5",
+]
+
+# Black code formatting
+[tool.black]
+line-length = 88
+target-version = ['py38', 'py39', 'py310', 'py311']
+include = '\.pyi?$'
+extend-exclude = '''
+/(
+  # directories
+  \.eggs
+  | \.git
+  | \.hg
+  | \.mypy_cache
+  | \.tox
+  | \.venv
+  | build
+  | dist
+)/
+'''
+
+# isort import sorting
+[tool.isort]
+profile = "black"
+multi_line_output = 3
+line_length = 88
+known_first_party = ["mfsu"]
+known_third_party = [
+    "numpy", "scipy", "matplotlib", "pandas", "sklearn", 
+    "astropy", "healpy", "emcee", "plotly", "tqdm"
+]
+
+# flake8 linting (configuration in .flake8 file)
+[tool.flake8]
+max-line-length = 88
+extend-ignore = ["E203", "E266", "E501", "W503"]
+max-complexity = 15
+select = ["B", "C", "E", "F", "W", "T4", "B9"]
+
+# pytest configuration
+[tool.pytest.ini_options]
+minversion = "7.0"
+addopts = [
+    "-ra",
+    "--strict-markers", 
+    "--strict-config",
+    "--cov=mfsu",
+    "--cov-report=term-missing",
+    "--cov-report=html",
+    "--cov-report=xml",
+]
+testpaths = ["tests"]
+filterwarnings = [
+    "error",
+    "ignore::UserWarning",
+    "ignore::DeprecationWarning",
+    "ignore::PendingDeprecationWarning",
+]
+markers = [
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+    "integration: marks tests as integration tests",
+    "unit: marks tests as unit tests", 
+    "cmb: marks tests related to CMB analysis",
+    "fractal: marks tests related to fractal analysis",
+    "statistical: marks tests related to statistical methods",
+]
+
+# Coverage configuration
+[tool.coverage.run]
+source = ["mfsu"]
+omit = [
+    "*/tests/*",
+    "*/test_*.py",
+    "setup.py",
+]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "if self.debug:",
+    "if settings.DEBUG",
+    "raise AssertionError", 
+    "raise NotImplementedError",
+    "if 0:",
+    "if __name__ == .__main__.:",
+    "class .*\\bProtocol\\):",
+    "@(abc\\.)?abstractmethod",
+]
+
+# MyPy type checking
+[tool.mypy]
+python_version = "3.8"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+check_untyped_defs = true
+disallow_untyped_decorators = true
+no_implicit_optional = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+warn_no_return = true
+warn_unreachable = true
+strict_equality = true
+
+[[tool.mypy.overrides]]
+module = [
+    "numpy.*",
+    "scipy.*", 
+    "matplotlib.*",
+    "pandas.*",
+    "sklearn.*",
+    "astropy.*",
+    "healpy.*",
+    "emcee.*",
+    "plotly.*",
+]
+ignore_missing_imports = true
+
+# Bandit security linting
+[tool.bandit]
+exclude_dirs = ["tests", "docs"]
+skips = ["B101", "B601"]
+
+# Documentation with Sphinx
+[tool.sphinx]
+source-dir = "docs/source"
+build-dir = "docs/build"
+
+# Performance profiling
+[tool.profile]
+sort_stats = ["cumulative", "time"]
+output_file = "profile_results.txt"
+
+# Git hooks and pre-commit
+[tool.pre-commit]
+repos = [
+    {repo = "https://github.com/pre-commit/pre-commit-hooks", rev = "v4.4.0"},
+    {repo = "https://github.com/psf/black", rev = "22.12.0"},
+    {repo = "https://github.com/pycqa/isort", rev = "5.11.4"},
+    {repo = "https://github.com/pycqa/flake8", rev = "6.0.0"}, 
+    {repo = "https://github.com/pre-commit/mirrors-mypy", rev = "v0.991"},
+]
+
+# Additional metadata for package discovery
+[tool.setuptools_scm]
+version_scheme = "guess-next-dev"
+local_scheme = "no-local-version"
+write_to = "mfsu/_version.py"
+
+# Wheel building configuration
+[tool.wheel]
+universal = false
+
+# Scientific Python ecosystem integration
+[tool.scientific-python]
+requires = [
+    "numpy>=1.20",
+    "scipy>=1.8", 
+    "matplotlib>=3.5",
+]
+
+# MFSU specific configuration
+[tool.mfsu]
+# Default parameters for the Universal Fractal Constant
+delta_F = 0.921
+fractal_dimension = 2.079
+hurst_exponent = 0.541
+
+# Computational settings
+default_precision = "float64"
+parallel_backend = "joblib"
+cache_directory = "./cache"
+data_directory = "./data"
+results_directory = "./results"
+
+# Validation settings
+statistical_threshold = 0.001
+monte_carlo_samples = 10000
+bootstrap_samples = 1000
+cross_validation_folds = 5
+
+# Plotting defaults
+figure_dpi = 300
+figure_format = "png"
+color_palette = "viridis"
+font_size = 12
+
+# Performance optimization
+use_numba = true
+use_multiprocessing = true
+chunk_size = 1000
+memory_limit = "8GB"
